@@ -84,16 +84,15 @@ export async function generateDocumentaryScript(
   }
 }
 
-export async function generateTitlesAndThumbnailPrompt(
+export async function generateTitles(
   script: string, 
   language: string,
-): Promise<{ titles: string[]; thumbnailPrompt: string }> {
+): Promise<string[]> {
   const targetLanguage = languageMap[language] || 'Português (Brasil)';
 
   const prompt = `
-    Analise o seguinte roteiro de documentário e gere o seguinte conteúdo no idioma ${targetLanguage}:
-    1. Uma lista de 5 a 7 títulos de documentário. Cada título deve ser uma frase fluida e natural, sem usar dois-pontos (:) ou outros separadores. O título deve ter NO MÁXIMO 100 caracteres e contar uma mini-história, combinando um protagonista, uma ação e uma revelação ou mistério impactante. Pense no título como uma sentença completa. Exemplo de bom título: 'O Detetive que Infiltrou na Máfia e Revelou a Conspiração do Século'. Evite formatos como 'Protagonista: A Ação'.
-    2. Uma sugestão de prompt simples e direto para uma IA de geração de imagem do Google (como o Imagen). O prompt deve ser descritivo, focado em elementos visuais concretos (pessoas, objetos, cenários) e seguir as diretrizes de segurança da IA, evitando conteúdo violento, odioso ou explícito. Descreva uma cena que capture a essência do documentário de forma impactante e visualmente atraente.
+    Analise o seguinte roteiro de documentário e gere uma lista de 5 a 7 títulos de documentário no idioma ${targetLanguage}.
+    Cada título deve ser uma frase fluida e natural, sem usar dois-pontos (:) ou outros separadores. O título deve ter NO MÁXIMO 100 caracteres e contar uma mini-história, combinando um protagonista, uma ação e uma revelação ou mistério impactante. Pense no título como uma sentença completa. Exemplo de bom título: 'O Detetive que Infiltrou na Máfia e Revelou a Conspiração do Século'. Evite formatos como 'Protagonista: A Ação'.
 
     Roteiro:
     ---
@@ -116,25 +115,166 @@ export async function generateTitlesAndThumbnailPrompt(
               items: {
                 type: Type.STRING
               }
-            },
-            thumbnailPrompt: {
-              type: Type.STRING,
-              description: 'Um prompt para gerar a thumbnail em uma IA de imagem.'
             }
           },
-          required: ['titles', 'thumbnailPrompt']
+          required: ['titles']
         },
       }
     });
 
     const jsonResponse = JSON.parse(response.text);
-    return jsonResponse;
+    return jsonResponse.titles;
 
   } catch (error) {
     console.error("Error calling Gemini API for titles:", error);
     throw new Error("Failed to generate titles from Gemini API.");
   }
 }
+
+
+export async function generateThumbnailPrompt(
+  script: string, 
+  language: string,
+): Promise<string> {
+  const targetLanguage = languageMap[language] || 'Português (Brasil)';
+
+  const prompt = `
+    Analise o seguinte roteiro de documentário e gere uma sugestão de prompt ALTAMENTE DETALHADO para uma IA de geração de imagem (como o Imagen). O objetivo é criar uma imagem FOTORREALISTA e cinematográfica.
+    O prompt deve ser retornado como uma única string de texto.
+    Descreva uma cena visualmente rica que capture a essência do documentário, incluindo detalhes sobre o ambiente, iluminação, emoção do personagem (se houver) e composição.
+    O prompt deve ser focado em elementos visuais concretos e seguir as diretrizes de segurança da IA. Não adicione nenhuma formatação ou texto extra, apenas o prompt.
+
+    Roteiro:
+    ---
+    ${script.substring(0, 8000)}
+    ---
+    Prompt (em ${targetLanguage}):
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+    
+    return response.text.trim();
+  } catch (error) {
+    console.error("Error calling Gemini API for thumbnail prompt:", error);
+    throw new Error("Failed to generate thumbnail prompt from Gemini API.");
+  }
+}
+
+export async function generateImagePrompts(
+  script: string,
+  language: string
+): Promise<string[]> {
+  const targetLanguage = languageMap[language] || 'Português (Brasil)';
+
+  const prompt = `
+    Analise o seguinte roteiro de documentário. Seu objetivo é dividi-lo em 100 cenas ou momentos visuais distintos, em estrita ordem cronológica, e criar um prompt de imagem detalhado para cada um.
+
+    Cada prompt deve:
+    - Representar uma cena sequencial do roteiro.
+    - Ser focado em criar uma imagem FOTORREALISTA e com qualidade CINEMATOGRÁFICA.
+    - Descrever a cena com detalhes visuais: ambiente, iluminação, objetos, emoções (se aplicável) e composição.
+    - Ser uma única string de texto.
+    - Estar no idioma ${targetLanguage}.
+
+    Retorne o resultado como um objeto JSON com uma chave "prompts" contendo um array com exatamente 100 prompts de imagem gerados, em ordem cronológica.
+
+    Roteiro:
+    ---
+    ${script.substring(0, 20000)}
+    ---
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            prompts: {
+              type: Type.ARRAY,
+              description: "Uma lista de 100 prompts detalhados para geração de imagem, em ordem cronológica.",
+              items: {
+                type: Type.STRING
+              }
+            }
+          },
+          required: ['prompts']
+        },
+      }
+    });
+
+    const jsonResponse = JSON.parse(response.text);
+    return jsonResponse.prompts;
+
+  } catch (error) {
+    console.error("Error calling Gemini API for image prompts:", error);
+    throw new Error("Failed to generate image prompts from Gemini API.");
+  }
+}
+
+export async function generateVideoPrompts(
+  imagePrompts: string[],
+  language: string
+): Promise<string[]> {
+  const targetLanguage = languageMap[language] || 'Português (Brasil)';
+
+  const prompt = `
+    Sua tarefa é transformar uma lista de 100 prompts para imagens estáticas em 100 prompts para clipes de vídeo curtos.
+    Cada novo prompt de vídeo deve descrever uma pequena ação, movimento de câmera ou mudança sutil que anima a cena estática original, como se estivesse dando vida à fotografia.
+    Mantenha o tom cinematográfico, fotorrealista e o idioma original (${targetLanguage}).
+
+    Por exemplo:
+    - Prompt de Imagem: "Um detetive olha pela janela chuvosa de seu escritório à noite, com o rosto melancólico."
+    - Prompt de Vídeo correspondente: "Câmera faz um zoom lento no rosto melancólico de um detetive enquanto ele olha pela janela chuvosa de seu escritório à noite; uma lágrima escorre lentamente por sua bochecha."
+
+    Abaixo estão os 100 prompts de imagem. Gere um prompt de vídeo para cada um, em ordem.
+
+    Prompts de Imagem:
+    ---
+    ${imagePrompts.map((p, i) => `${i + 1}. ${p}`).join('\n')}
+    ---
+
+    Retorne o resultado como um objeto JSON com uma chave "video_prompts" contendo um array com exatamente 100 strings dos novos prompts de vídeo, na mesma ordem cronológica.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            video_prompts: {
+              type: Type.ARRAY,
+              description: "Uma lista de 100 prompts detalhados para geração de clipes de vídeo, baseados nos prompts de imagem, em ordem cronológica.",
+              items: {
+                type: Type.STRING
+              }
+            }
+          },
+          required: ['video_prompts']
+        },
+      }
+    });
+
+    const jsonResponse = JSON.parse(response.text);
+    return jsonResponse.video_prompts;
+
+  } catch (error) {
+    console.error("Error calling Gemini API for video prompts:", error);
+    throw new Error("Failed to generate video prompts from Gemini API.");
+  }
+}
+
 
 export async function generateTitlesOnly(
   script: string,
