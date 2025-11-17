@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
@@ -341,9 +342,13 @@ export async function generateTitlesOnly(
   }
 }
 
-export async function translateTitlesToPortuguese(titles: string[]): Promise<string[]> {
+export async function translateTitles(titles: string[], language: string): Promise<string[]> {
+  const targetLanguage = languageMap[language];
+  if (!targetLanguage) {
+    throw new Error(`Unsupported language code: ${language}`);
+  }
   const prompt = `
-    Traduza a seguinte lista de títulos para o Português (Brasil).
+    Traduza a seguinte lista de títulos para o idioma ${targetLanguage}.
     Mantenha o tom e o estilo de cada título.
     Retorne o resultado como um objeto JSON com uma única chave "translated_titles" contendo um array com os títulos traduzidos.
 
@@ -364,7 +369,7 @@ export async function translateTitlesToPortuguese(titles: string[]): Promise<str
           properties: {
             translated_titles: {
               type: Type.ARRAY,
-              description: "A lista de títulos traduzidos para o Português (Brasil).",
+              description: `A lista de títulos traduzidos para ${targetLanguage}.`,
               items: {
                 type: Type.STRING
               }
@@ -378,8 +383,8 @@ export async function translateTitlesToPortuguese(titles: string[]): Promise<str
     const jsonResponse = JSON.parse(response.text);
     return jsonResponse.translated_titles;
   } catch (error) {
-    console.error("Error calling Gemini API for title translation:", error);
-    throw new Error("Failed to translate titles from Gemini API.");
+    console.error(`Error calling Gemini API for title translation to ${language}:`, error);
+    throw new Error(`Failed to translate titles to ${language} from Gemini API.`);
   }
 }
 
