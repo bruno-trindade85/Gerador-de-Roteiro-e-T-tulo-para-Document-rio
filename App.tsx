@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { generateDocumentaryScript, generateTitles, generateThumbnailPrompt, generateImageFromPrompt, generateLogline, translateTitles, generateTitlesOnly, generateImagePrompts, generateVideoPrompts } from './services/geminiService';
 import { Loader } from './components/Loader';
@@ -635,6 +633,8 @@ const App: React.FC = () => {
 
   const outputCharCount = outputText.length;
   const outputWordCount = outputText.trim() ? outputText.trim().split(/\s+/).length : 0;
+  const inputCharCount = inputText.length;
+  const inputWordCount = inputText.trim() ? inputText.trim().split(/\s+/).length : 0;
   
   const getWordCounterColor = () => {
     if (outputWordCount === 0) return 'text-gray-500 dark:text-gray-400';
@@ -682,8 +682,11 @@ const App: React.FC = () => {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder="Cole aqui a transcrição de um vídeo ou um texto longo..."
-                className="w-full h-96 p-4 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-lg resize-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors duration-200 text-gray-800 dark:text-gray-200"
+                className="w-full h-96 p-4 pb-10 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-lg resize-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors duration-200 text-gray-800 dark:text-gray-200"
               />
+              <div className="absolute bottom-3 right-4 text-sm text-gray-500 dark:text-gray-400 select-none">
+                {inputWordCount} {inputWordCount === 1 ? 'palavra' : 'palavras'} / {inputCharCount} {inputCharCount === 1 ? 'caracter' : 'caracteres'}
+              </div>
             </div>
           </div>
        );
