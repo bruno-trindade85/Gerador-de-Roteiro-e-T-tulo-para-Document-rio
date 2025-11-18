@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { generateDocumentaryScript, generateTitles, generateThumbnailPrompt, generateImageFromPrompt, generateLogline, translateTitles, generateTitlesOnly, generateImagePrompts, generateVideoPrompts } from './services/geminiService';
 import { Loader } from './components/Loader';
@@ -60,11 +61,11 @@ interface SavedScript {
 
 const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>('dark');
-  const [view, setView] = useState<View>('dashboard');
+  const [view, setView] = useState<View>('editor');
   const [savedScripts, setSavedScripts] = useState<SavedScript[]>([]);
   const [currentScriptId, setCurrentScriptId] = useState<string | null>(null);
 
-  const [generationMode, setGenerationMode] = useState<GenerationMode>(null);
+  const [generationMode, setGenerationMode] = useState<GenerationMode>('text');
 
   const [inputText, setInputText] = useState<string>('');
   const [loglineIdea, setLoglineIdea] = useState<string>('');
